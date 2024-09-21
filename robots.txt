@@ -1,0 +1,4 @@
+User-agent: *
+Disallow: /
+# No sitemap if not live
+# Sitemap: https://LANCENET.net/sitemap.xml
