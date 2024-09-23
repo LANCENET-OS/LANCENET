@@ -1,0 +1,69 @@
+# Simple workflow for deploying static content to GitHub Pages
+name: Deploy static content to Pages
+
+            - name: Replace in files
+            
+  # You may pin to the exact commit or the version.
+  # uses: richardrigutins/replace-in-files@1dd23b853af5d2e2551a1012ec4ba77573899ee1
+  uses: richardrigutins/replace-in-files@v2.1.6
+  with:
+    # The files to be searched.
+It can be the path to a file or a glob pattern (e.g. `**/*.txt`).
+    files: "index.html"
+    # The text that will replace the matched text.
+    replacement-text: "./img/"
+    # The text that will be replaced.
+    search-text: "/img/"
+    # (Optional) The encoding of the files to be searched.
+The following values are supported: `ascii`, `utf8`, `utf16le`, `ucs2`, `base64`, `latin1`.
+Defaults to `utf8`.
+    encoding: # optional, default is utf8
+    # (Optional) The files to be excluded from the search.
+It can be the path to a file or a glob pattern (e.g. `**/*.md`).
+    exclude: # optional, default is 
+    # (Optional) The maximum number of files to process in parallel.
+Defaults to `10`.
+    max-parallelism: # optional, default is 10
+          
+
+
+on:
+  # Runs on pushes targeting the default branch
+  push:
+    branches: ["main"]
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+# Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Allow only one concurrent deployment, skipping runs queued between the run in-progress and latest queued.
+# However, do NOT cancel in-progress runs as we want to allow these production deployments to complete.
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  # Single deploy job since we're just deploying
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          # Upload entire repository
+          path: '.'
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
