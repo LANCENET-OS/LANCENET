@@ -38,7 +38,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         
-      - name: String Replacer
+  -name: String Replacer
   # You may pin to the exact commit or the version.
   # uses: thiagodnf/string-replacer@2ed1d96c4edcede681f867af23289bb8a8b879ae
       uses: thiagodnf/string-replacer@v1.0.2
