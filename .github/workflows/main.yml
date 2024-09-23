@@ -1,6 +1,6 @@
 # https://lancenet-os.github.io/LANCENET/
 
-- name: Replace in files
+- name: "Replace in files"
             
   # You may pin to the exact commit or the version.
   # uses: richardrigutins/replace-in-files@1dd23b853af5d2e2551a1012ec4ba77573899ee1
@@ -8,11 +8,11 @@
   with:
     # The files to be searched.
 #It can be the path to a file or a glob pattern (e.g. `**/*.txt`).
-    files: index.html
+    files: "index.html"
     # The text that will replace the matched text.
-    replacement-text: ./img/
+    replacement-text: "./img/"
     # The text that will be replaced.
-    search-text: /img/
+    search-text: "/img/"
     # (Optional) The encoding of the files to be searched.
 #The following values are supported: `ascii`, `utf8`, `utf16le`, `ucs2`, `base64`, `latin1`.
 #Defaults to `utf8`.
