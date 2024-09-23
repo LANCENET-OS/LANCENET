@@ -28,6 +28,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Display 'index.html' content before replacement
+        run: cat index.html
+
+      - name: Replace strings in 'index.html'
+        uses: thiagodnf/string-replacer@v1.0.2
+        with:
+          find: '/img/'
+          replace: './img/'
+          include: 'index.html'  # Apply find and replace only to index.html
+
+      - name: Display 'index.html' content after replacement
+        run: cat index.html
+
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
@@ -39,21 +52,6 @@ jobs:
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
-
-  string_replacer:
-    name: String Replacer
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      
-      - name: Find-and-replace strings
-        uses: mad9000/actions-find-and-replace-string@5
-        with:
-          source: '**'  # Glob pattern for the files to process (apply to all files)
-          find: '/img/'
-          replace: './img/'
-          replaceAll: true  # Optional, default is true
 
   deploy:
     name: Deploy Job
