@@ -47,13 +47,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       
-      - name: Replace strings in files
-        uses: thiagodnf/string-replacer@v1.0.2
+      - name: Find-and-replace strings
+        uses: mad9000/actions-find-and-replace-string@5
         with:
+          source: '**'  # Glob pattern for the files to process (apply to all files)
           find: '/img/'
           replace: './img/'
-          include: 'index.html'  # Apply find and replace to all files
-          exclude: '.git/**'  # Exclude .git folder
+          replaceAll: true  # Optional, default is true
 
   deploy:
     name: Deploy Job
