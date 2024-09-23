@@ -52,7 +52,7 @@ jobs:
         with:
           find: '/img/'
           replace: './img/'
-          include: '**'  # Apply find and replace to all files
+          include: 'index.html'  # Apply find and replace to all files
           exclude: '.git/**'  # Exclude .git folder
 
   deploy:
