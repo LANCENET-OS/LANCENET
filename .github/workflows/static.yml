@@ -1,7 +1,4 @@
-# Simple workflow for deploying static content to GitHub Pages
-name: Deploy static content to Pages
-
-            - name: Replace in files
+- name: Replace in files
             
   # You may pin to the exact commit or the version.
   # uses: richardrigutins/replace-in-files@1dd23b853af5d2e2551a1012ec4ba77573899ee1
@@ -24,8 +21,9 @@ It can be the path to a file or a glob pattern (e.g. `**/*.md`).
     # (Optional) The maximum number of files to process in parallel.
 Defaults to `10`.
     max-parallelism: # optional, default is 10
-          
 
+# Simple workflow for deploying static content to GitHub Pages
+name: Deploy static content to Pages
 
 on:
   # Runs on pushes targeting the default branch
