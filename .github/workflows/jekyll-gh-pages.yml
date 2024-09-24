@@ -20,8 +20,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout the repository
+      # Checkout with full commit history to get accurate commit count
+      - name: Checkout the repository with full history
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch all commit history to ensure proper commit count
 
       # Overwrite the old file with the new one, if different
       - name: Overwrite old 'lancenet.net.zip' with new one (force if needed)
@@ -56,7 +59,8 @@ jobs:
           # Read the current version from the version.txt file
           VERSION_FILE="version.txt"
           if [ ! -f "$VERSION_FILE" ]; then
-            echo "1.0.52" > "$VERSION_FILE"
+            echo "Error: version.txt not found!" >&2
+            exit 1
           fi
           CURRENT_VERSION=$(cat "$VERSION_FILE")
           echo "Current SITEVERSION: $CURRENT_VERSION"
@@ -106,7 +110,7 @@ jobs:
           replace: '${{ env.SITEVERSION }}'
           include: 'index.html'
 
-      - name: Get commit count for UPLOADVERSION
+      - name: Get accurate commit count for UPLOADVERSION
         id: commit_count
         run: |
           COMMIT_COUNT=$(git rev-list --count HEAD)
