@@ -28,6 +28,21 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Install unzip
+        run: sudo apt-get update && sudo apt-get install -y unzip
+
+      - name: Find and extract the zip file matching 'lancenet.net.*.zip'
+        run: |
+          # Find the file with the pattern 'lancenet.net.*.zip'
+          ZIP_FILE=$(find . -name "lancenet.net.*.zip" | head -n 1)
+          echo "Found zip file: $ZIP_FILE"
+          
+          # Extract the zip file
+          unzip "$ZIP_FILE" -d ./
+          
+          # List files to verify extraction
+          ls -la
+
       - name: Display 'index.html' content before replacement
         run: cat index.html
 
