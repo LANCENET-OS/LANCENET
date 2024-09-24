@@ -40,6 +40,12 @@ jobs:
         run: |
           # Find the .rar file
           RAR_FILE=$(find . -name "*.rar" | head -n 1)
+          
+          if [ -z "$RAR_FILE" ]; then
+            echo "No .rar file found, skipping renaming step."
+            exit 1
+          fi
+          
           echo "Found rar file: $RAR_FILE"
           
           # Generate the new name with the current date
