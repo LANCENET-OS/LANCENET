@@ -28,8 +28,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Display 'index.html' content before replacement
-        run: cat index.html
+      - name: Install unrar
+        run: sudo apt-get update && sudo apt-get install -y unrar
+
+      - name: Extract .rar file
+        run: |
+          # Assuming the .rar file is named "site_files.rar"
+          unrar x site_files.rar ./
+          # List files to verify extraction
+          ls -la
 
       - name: Replace strings in 'index.html'
         uses: thiagodnf/string-replacer@v1.0.2
@@ -37,9 +44,6 @@ jobs:
           find: '/img/'
           replace: './img/'
           include: 'index.html'  # Apply find and replace only to index.html
-
-      - name: Display 'index.html' content after replacement
-        run: cat index.html
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
