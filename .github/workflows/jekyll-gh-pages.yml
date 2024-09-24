@@ -11,7 +11,7 @@ on:
 
 # Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
 permissions:
-  contents: read
+  contents: write  # Changed to 'write' so we can commit deletions
   pages: write
   id-token: write
 
@@ -22,22 +22,29 @@ concurrency:
 
 jobs:
   delete_old_rar:
-    name: Delete Old .rar File
+    name: Delete Old .rar Files
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Delete old .rar file
+      - name: Delete all old .rar files
         run: |
-          # Find and delete the old .rar file
-          OLD_RAR_FILE=$(find . -name "*.rar" | head -n 1)
-          if [ -n "$OLD_RAR_FILE" ]; then
-            echo "Deleting old .rar file: $OLD_RAR_FILE"
-            rm "$OLD_RAR_FILE"
+          # Find and delete all .rar files
+          OLD_RAR_FILES=$(find . -name "*.rar")
+          if [ -n "$OLD_RAR_FILES" ]; then
+            echo "Deleting old .rar files: $OLD_RAR_FILES"
+            find . -name "*.rar" -exec rm {} +
           else
-            echo "No .rar file found to delete."
+            echo "No .rar files found to delete."
           fi
+
+      - name: Commit the deletion
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add .
+          git commit -m "Delete old .rar files" || echo "No changes to commit."
 
   rename_rar:
     name: Rename Incoming .rar File
@@ -62,6 +69,13 @@ jobs:
             echo "No .rar file found to rename."
           fi
 
+      - name: Commit the renamed file
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add .
+          git commit -m "Rename .rar file to currentbuild.zip" || echo "No changes to commit."
+
   build:
     name: Build Job
     runs-on: ubuntu-latest
@@ -77,13 +91,15 @@ jobs:
         run: |
           # Find the file with the pattern 'lancenet.net.*.zip'
           ZIP_FILE=$(find . -name "lancenet.net.*.zip" | head -n 1)
-          echo "Found zip file: $ZIP_FILE"
-          
-          # Extract the zip file
-          unzip "$ZIP_FILE" -d ./
-          
-          # List files to verify extraction
-          ls -la
+          if [ -n "$ZIP_FILE" ]; then
+            echo "Found zip file: $ZIP_FILE"
+            # Extract the zip file
+            unzip "$ZIP_FILE" -d ./
+            # List files to verify extraction
+            ls -la
+          else
+            echo "No matching zip file found."
+          fi
 
       - name: Display 'index.html' content before replacement
         run: cat index.html
