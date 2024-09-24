@@ -2,20 +2,15 @@
 name: Deploy Jekyll with GitHub Pages dependencies preinstalled
 
 on:
-  # Runs on pushes targeting the default branch
   push:
     branches: ["main"]
-
-  # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
-# Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
 permissions:
   contents: read
   pages: write
   id-token: write
 
-# Allow only one concurrent deployment, skipping runs queued between the run in-progress and latest queued.
 concurrency:
   group: "pages"
   cancel-in-progress: false
@@ -31,17 +26,63 @@ jobs:
       - name: Install unzip
         run: sudo apt-get update && sudo apt-get install -y unzip
 
-      - name: Find and extract the zip file matching 'lancenet.net.*.zip'
+      - name: Clean up old '.rar' and '.zip' files
         run: |
-          # Find the file with the pattern 'lancenet.net.*.zip'
-          ZIP_FILE=$(find . -name "lancenet.net.*.zip" | head -n 1)
-          echo "Found zip file: $ZIP_FILE"
+          # Remove all existing .rar and .zip files to ensure clean workspace
+          echo "Cleaning up old .rar and .zip files..."
+          rm -f *.rar *.zip
+          echo "Old .rar and .zip files removed."
+
+      - name: Archive the previous '.rar' file if any
+        run: |
+          # Get current date
+          DATE=$(date +"%Y-%m-%d")
           
-          # Extract the zip file
-          unzip "$ZIP_FILE" -d ./
+          # Check if a .rar file exists after cleanup
+          RAR_FILE=$(find . -name "*.rar" | head -n 1)
+          if [ -n "$RAR_FILE" ]; then
+            # Create 'Archive' folder if it doesn't exist
+            mkdir -p Archive
+            
+            # Rename and move the old .rar file to Archive folder as 'archived.(thisdate).zip'
+            NEW_ARCHIVE_NAME="archived.$DATE.zip"
+            zip -r "./Archive/$NEW_ARCHIVE_NAME" "$RAR_FILE"
+            echo "Archived and moved $RAR_FILE to ./Archive/$NEW_ARCHIVE_NAME"
+            
+            # Remove the original .rar file after archiving
+            rm "$RAR_FILE"
+          else
+            echo "No old .rar file found to archive."
+          fi
+
+      - name: Rename incoming '.rar' file to 'currentbuild.(thisdate).zip'
+        run: |
+          # Find the incoming .rar file
+          NEW_RAR_FILE=$(find . -name "*.rar" | head -n 1)
+          if [ -n "$NEW_RAR_FILE" ]; then
+            # Rename the incoming .rar file
+            DATE=$(date +"%Y-%m-%d")
+            NEW_NAME="currentbuild.$DATE.zip"
+            mv "$NEW_RAR_FILE" "$NEW_NAME"
+            echo "Renamed $NEW_RAR_FILE to $NEW_NAME"
+          else
+            echo "No incoming .rar file found to rename."
+          fi
+
+      - name: Find and extract the zip file matching 'currentbuild.*.zip'
+        run: |
+          ZIP_FILE=$(find . -name "currentbuild.*.zip" | head -n 1)
+          if [ -n "$ZIP_FILE" ]; then
+            echo "Found zip file: $ZIP_FILE"
           
-          # List files to verify extraction
-          ls -la
+            # Extract the zip file
+            unzip "$ZIP_FILE" -d ./
+          
+            # List files to verify extraction
+            ls -la
+          else
+            echo "No zip file found to extract."
+          fi
 
       - name: Display 'index.html' content before replacement
         run: cat index.html
@@ -51,7 +92,7 @@ jobs:
         with:
           find: '/img/'
           replace: './img/'
-          include: 'index.html'  # Apply find and replace only to index.html
+          include: 'index.html'
 
       - name: Display 'index.html' content after replacement
         run: cat index.html
