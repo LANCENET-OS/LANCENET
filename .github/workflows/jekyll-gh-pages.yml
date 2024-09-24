@@ -1,4 +1,3 @@
-# Sample workflow for building and deploying a Jekyll site to GitHub Pages
 name: Deploy Jekyll with GitHub Pages dependencies preinstalled
 
 on:
@@ -24,74 +23,91 @@ jobs:
       - name: Checkout the repository
         uses: actions/checkout@v4
 
-      - name: Delete the oldest .rar file (if exists)
+      # Overwrite the old file with the new one
+      - name: Overwrite old 'lancenet.net.zip' with new one
         run: |
-          # Find and delete the oldest .rar file based on modification time
-          OLDEST_RAR_FILE=$(find . -name "lancenet.net.*.rar" -type f -printf "%T@ %p\n" | sort -n | head -n 1 | cut -d' ' -f2)
-          if [ -n "$OLDEST_RAR_FILE" ]; then
-            echo "Deleting oldest .rar file: $OLDEST_RAR_FILE"
-            rm "$OLDEST_RAR_FILE"
+          # Check if the new file exists
+          NEW_FILE=$(find . -name "lancenet.net.zip" | head -n 1)
+          if [ -n "$NEW_FILE" ]; then
+            echo "Found new file: $NEW_FILE"
+            # Overwrite the old file with the new one
+            mv "$NEW_FILE" ./lancenet.net.zip
           else
-            echo "No .rar files found to delete."
+            echo "No 'lancenet.net.zip' file found."
           fi
 
-      - name: Commit the deletion of old file
+      - name: Commit the new file
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add .
-          git commit -m "Deleted the oldest .rar file" || echo "No old .rar file to delete."
+          git commit -m "Overwrite old lancenet.net.zip with new one" || echo "No changes to commit."
 
-      - name: Rename the newest .rar file to 'currentbuild.(thisdate).zip'
+      # Increment the SITEVERSION from the stored version file
+      - name: Increment SITEVERSION
+        id: siteversion
         run: |
-          # Find the newest .rar file based on modification time
-          NEWEST_RAR_FILE=$(find . -name "lancenet.net.*.rar" -type f -printf "%T@ %p\n" | sort -n | tail -n 1 | cut -d' ' -f2)
-          if [ -n "$NEWEST_RAR_FILE" ]; then
-            # Get the current date
-            CURRENT_DATE=$(date +"%Y%m%d")
-            # Rename the file
-            NEW_FILE_NAME="currentbuild.$CURRENT_DATE.zip"
-            echo "Renaming $NEWEST_RAR_FILE to $NEW_FILE_NAME"
-            mv "$NEWEST_RAR_FILE" "$NEW_FILE_NAME"
-          else
-            echo "No .rar file found to rename."
+          # Read the current version from the version.txt file
+          VERSION_FILE="version.txt"
+          if [ ! -f "$VERSION_FILE" ]; then
+            echo "1.0.52" > "$VERSION_FILE"
           fi
+          CURRENT_VERSION=$(cat "$VERSION_FILE")
+          echo "Current SITEVERSION: $CURRENT_VERSION"
+          
+          # Increment the version by 0.0.1
+          NEW_VERSION=$(echo "$CURRENT_VERSION" | awk -F. '{printf "%d.%d.%d\n", $1, $2, $3+1}')
+          echo "New SITEVERSION: $NEW_VERSION"
 
-      - name: Commit the renamed file
+          # Write the new version to the version.txt file
+          echo "$NEW_VERSION" > "$VERSION_FILE"
+
+          # Make the SITEVERSION available for the next steps
+          echo "SITEVERSION=$NEW_VERSION" >> $GITHUB_ENV
+
+      - name: Commit the updated SITEVERSION
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add .
-          git commit -m "Renamed the newest .rar file to currentbuild.zip" || echo "No .rar file to rename."
+          git add version.txt
+          git commit -m "Increment SITEVERSION to ${{ env.SITEVERSION }}" || echo "No changes to commit."
+
+      # Replace SITEVERSION in index.html
+      - name: Replace SITEVERSION in 'index.html'
+        uses: thiagodnf/string-replacer@v1.0.2
+        with:
+          find: 'SITEVERSION'
+          replace: '${{ env.SITEVERSION }}'
+          include: 'index.html'
+
+      # Replace UPLOADVERSION with the number of commits on the main branch
+      - name: Get commit count for UPLOADVERSION
+        id: commit_count
+        run: |
+          COMMIT_COUNT=$(git rev-list --count HEAD)
+          echo "UPLOADVERSION=$COMMIT_COUNT" >> $GITHUB_ENV
+
+      - name: Replace UPLOADVERSION in 'index.html'
+        uses: thiagodnf/string-replacer@v1.0.2
+        with:
+          find: 'UPLOADVERSION'
+          replace: '${{ env.UPLOADVERSION }}'
+          include: 'index.html'
 
       - name: Install unzip
         run: sudo apt-get update && sudo apt-get install -y unzip
 
-      - name: Find and extract the zip file matching 'lancenet.net.*.zip'
+      - name: Extract the zip file 'lancenet.net.zip'
         run: |
-          # Find the file with the pattern 'lancenet.net.*.zip'
-          ZIP_FILE=$(find . -name "lancenet.net.*.zip" | head -n 1)
-          if [ -n "$ZIP_FILE" ]; then
-            echo "Found zip file: $ZIP_FILE"
-            # Extract the zip file
-            unzip "$ZIP_FILE" -d ./
-            # List files to verify extraction
+          if [ -f "./lancenet.net.zip" ]; then
+            echo "Found lancenet.net.zip"
+            unzip "./lancenet.net.zip" -d ./
             ls -la
           else
-            echo "No matching zip file found."
+            echo "No zip file found to extract."
           fi
 
-      - name: Display 'index.html' content before replacement
-        run: cat index.html
-
-      - name: Replace strings in 'index.html'
-        uses: thiagodnf/string-replacer@v1.0.2
-        with:
-          find: '/img/'
-          replace: './img/'
-          include: 'index.html'
-
-      - name: Display 'index.html' content after replacement
+      - name: Display 'index.html' content after replacements
         run: cat index.html
 
       - name: Setup Pages
