@@ -78,28 +78,6 @@ jobs:
           git add version.txt
           git commit -m "Increment SITEVERSION to ${{ env.SITEVERSION }}" || echo "No changes to commit."
 
-      # Replace SITEVERSION in index.html
-      - name: Replace SITEVERSION in 'index.html'
-        uses: thiagodnf/string-replacer@v1.0.2
-        with:
-          find: 'SITEVERSION'
-          replace: '${{ env.SITEVERSION }}'
-          include: 'index.html'
-
-      # Replace UPLOADVERSION with the number of commits on the main branch
-      - name: Get commit count for UPLOADVERSION
-        id: commit_count
-        run: |
-          COMMIT_COUNT=$(git rev-list --count HEAD)
-          echo "UPLOADVERSION=$COMMIT_COUNT" >> $GITHUB_ENV
-
-      - name: Replace UPLOADVERSION in 'index.html'
-        uses: thiagodnf/string-replacer@v1.0.2
-        with:
-          find: 'UPLOADVERSION'
-          replace: '${{ env.UPLOADVERSION }}'
-          include: 'index.html'
-
       - name: Install unzip
         run: sudo apt-get update && sudo apt-get install -y unzip
 
@@ -112,6 +90,34 @@ jobs:
           else
             echo "No zip file found to extract."
           fi
+
+      # Replace strings in 'index.html' after extraction
+      - name: Replace '/img/' with './img/' in 'index.html'
+        uses: thiagodnf/string-replacer@v1.0.2
+        with:
+          find: '/img/'
+          replace: './img/'
+          include: 'index.html'
+
+      - name: Replace SITEVERSION in 'index.html'
+        uses: thiagodnf/string-replacer@v1.0.2
+        with:
+          find: 'SITEVERSION'
+          replace: '${{ env.SITEVERSION }}'
+          include: 'index.html'
+
+      - name: Get commit count for UPLOADVERSION
+        id: commit_count
+        run: |
+          COMMIT_COUNT=$(git rev-list --count HEAD)
+          echo "UPLOADVERSION=$COMMIT_COUNT" >> $GITHUB_ENV
+
+      - name: Replace UPLOADVERSION in 'index.html'
+        uses: thiagodnf/string-replacer@v1.0.2
+        with:
+          find: 'UPLOADVERSION'
+          replace: '${{ env.UPLOADVERSION }}'
+          include: 'index.html'
 
       - name: Display 'index.html' content after replacements
         run: cat index.html
