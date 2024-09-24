@@ -2,69 +2,57 @@
 name: Deploy Jekyll with GitHub Pages dependencies preinstalled
 
 on:
-  # Runs on pushes targeting the default branch
   push:
     branches: ["main"]
-
-  # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
-# Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
 permissions:
-  contents: write  # Changed to 'write' so we can commit deletions
+  contents: write
   pages: write
   id-token: write
 
-# Allow only one concurrent deployment, skipping runs queued between the run in-progress and latest queued.
 concurrency:
   group: "pages"
   cancel-in-progress: false
 
 jobs:
-  delete_old_rar:
-    name: Delete Old .rar Files
+  build_and_deploy:
+    name: Build and Deploy
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout
+      - name: Checkout the repository
         uses: actions/checkout@v4
 
-      - name: Delete all old .rar files
+      - name: Delete the oldest .rar file (if exists)
         run: |
-          # Find and delete all .rar files
-          OLD_RAR_FILES=$(find . -name "*.rar")
-          if [ -n "$OLD_RAR_FILES" ]; then
-            echo "Deleting old .rar files: $OLD_RAR_FILES"
-            find . -name "*.rar" -exec rm {} +
+          # Find and delete the oldest .rar file based on modification time
+          OLDEST_RAR_FILE=$(find . -name "lancenet.net.*.rar" -type f -printf "%T@ %p\n" | sort -n | head -n 1 | cut -d' ' -f2)
+          if [ -n "$OLDEST_RAR_FILE" ]; then
+            echo "Deleting oldest .rar file: $OLDEST_RAR_FILE"
+            rm "$OLDEST_RAR_FILE"
           else
             echo "No .rar files found to delete."
           fi
 
-      - name: Commit the deletion
+      - name: Commit the deletion of old file
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add .
-          git commit -m "Delete old .rar files" || echo "No changes to commit."
+          git commit -m "Deleted the oldest .rar file" || echo "No old .rar file to delete."
 
-  rename_rar:
-    name: Rename Incoming .rar File
-    runs-on: ubuntu-latest
-    needs: delete_old_rar
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Rename incoming .rar file to 'currentbuild.(thisdate).zip'
+      - name: Rename the newest .rar file to 'currentbuild.(thisdate).zip'
         run: |
-          # Find the incoming .rar file
-          INCOMING_RAR_FILE=$(find . -name "*.rar" | head -n 1)
-          if [ -n "$INCOMING_RAR_FILE" ]; then
+          # Find the newest .rar file based on modification time
+          NEWEST_RAR_FILE=$(find . -name "lancenet.net.*.rar" -type f -printf "%T@ %p\n" | sort -n | tail -n 1 | cut -d' ' -f2)
+          if [ -n "$NEWEST_RAR_FILE" ]; then
             # Get the current date
             CURRENT_DATE=$(date +"%Y%m%d")
             # Rename the file
             NEW_FILE_NAME="currentbuild.$CURRENT_DATE.zip"
-            echo "Renaming $INCOMING_RAR_FILE to $NEW_FILE_NAME"
-            mv "$INCOMING_RAR_FILE" "$NEW_FILE_NAME"
+            echo "Renaming $NEWEST_RAR_FILE to $NEW_FILE_NAME"
+            mv "$NEWEST_RAR_FILE" "$NEW_FILE_NAME"
           else
             echo "No .rar file found to rename."
           fi
@@ -74,15 +62,7 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add .
-          git commit -m "Rename .rar file to currentbuild.zip" || echo "No changes to commit."
-
-  build:
-    name: Build Job
-    runs-on: ubuntu-latest
-    needs: rename_rar
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+          git commit -m "Renamed the newest .rar file to currentbuild.zip" || echo "No .rar file to rename."
 
       - name: Install unzip
         run: sudo apt-get update && sudo apt-get install -y unzip
@@ -109,7 +89,7 @@ jobs:
         with:
           find: '/img/'
           replace: './img/'
-          include: 'index.html'  # Apply find and replace only to index.html
+          include: 'index.html'
 
       - name: Display 'index.html' content after replacement
         run: cat index.html
@@ -126,14 +106,5 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
 
-  deploy:
-    name: Deploy Job
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    runs-on: ubuntu-latest
-    needs: build
-    steps:
       - name: Deploy to GitHub Pages
-        id: deployment
         uses: actions/deploy-pages@v4
