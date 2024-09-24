@@ -28,15 +28,23 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install unrar
-        run: sudo apt-get update && sudo apt-get install -y unrar
+      - name: Install unzip
+        run: sudo apt-get update && sudo apt-get install -y unzip
 
-      - name: Extract .rar file
+      - name: Find and extract the zip file matching 'lancenet.net.*.zip'
         run: |
-          # Assuming the .rar file is named "site_files.rar"
-          unrar x site_files.rar ./
+          # Find the file with the pattern 'lancenet.net.*.zip'
+          ZIP_FILE=$(find . -name "lancenet.net.*.zip" | head -n 1)
+          echo "Found zip file: $ZIP_FILE"
+          
+          # Extract the zip file
+          unzip "$ZIP_FILE" -d ./
+          
           # List files to verify extraction
           ls -la
+
+      - name: Display 'index.html' content before replacement
+        run: cat index.html
 
       - name: Replace strings in 'index.html'
         uses: thiagodnf/string-replacer@v1.0.2
@@ -44,6 +52,9 @@ jobs:
           find: '/img/'
           replace: './img/'
           include: 'index.html'  # Apply find and replace only to index.html
+
+      - name: Display 'index.html' content after replacement
+        run: cat index.html
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
