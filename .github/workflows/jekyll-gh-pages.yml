@@ -96,12 +96,12 @@ jobs:
           fi
 
       # Replace '/img/' with './img/' in index.html
-      - name: Replace '/img/' with './img/' in 'index.html'
-        uses: thiagodnf/string-replacer@v1.0.2
-        with:
-          find: '/img/'
-          replace: './img/'
-          include: 'index.html'
+#      - name: Replace '/img/' with './img/' in 'index.html'
+#        uses: thiagodnf/string-replacer@v1.0.2
+#        with:
+#          find: '/img/'
+#          replace: './img/'
+#          include: 'index.html'
 
       # Replace SITEVERSION in 'index.html'
       - name: Replace SITEVERSION in 'index.html'
