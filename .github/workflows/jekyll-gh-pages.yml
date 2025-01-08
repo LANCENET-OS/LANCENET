@@ -20,7 +20,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      ## 1) Check out the repository
+      # 1) Check out the repository
       - name: Checkout code
         uses: actions/checkout@v4
         with:
@@ -30,7 +30,7 @@ jobs:
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-		  
+
       # 2) Remove the old ZIP from both the runner AND the repository
       - name: Remove old lancenet.net.zip
         run: |
