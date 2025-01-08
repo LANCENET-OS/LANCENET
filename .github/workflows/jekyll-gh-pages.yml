@@ -3,8 +3,6 @@ name: Deploy Jekyll with GitHub Pages dependencies preinstalled
 on:
   push:
     branches: ["main"]
-  repository_dispatch:
-    types: [flipsite_publish]
   workflow_dispatch:
 
 permissions:
@@ -22,102 +20,136 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Step 1: Checkout repository with full history
-      - name: Checkout the repository with full history
+      # 1) Check out the repository
+      - name: Check out the repository with full history
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 0  # Fetch all commit history to ensure proper commit count
 
-      # Step 2: Install necessary dependencies
-      - name: Install dependencies
-        run: sudo apt-get update && sudo apt-get install -y unzip curl
-
-      # Step 3: Download and extract the ZIP file from Flipsite webhook
-      - name: Download and extract site content from Flipsite
-        if: github.event_name == 'repository_dispatch' && github.event.action == 'flipsite_publish'
+      # 2) Archive the existing 'lancenet.net.zip' (if any) to an 'archive' folder with a timestamp
+      - name: Archive old ZIP
         run: |
-          # Download the ZIP file
-          curl -L ${{ github.event.client_payload.download.url }} -o site.zip
-          echo "Downloaded ZIP file from Flipsite"
+          if [ -f "lancenet.net.zip" ]; then
+            echo "Existing lancenet.net.zip found. Archiving..."
+            mkdir -p archive
+            TIMESTAMP=$(date +'%Y%m%d%H%M%S')
+            mv lancenet.net.zip "archive/lancenet.net.${TIMESTAMP}.zip"
+          else
+            echo "No existing lancenet.net.zip to archive."
+          fi
 
-          # Extract the ZIP file
-          unzip -o site.zip -d ./site
-          echo "Extracted site.zip to ./site"
-          ls -la ./site
+      # 3) Find and rename the new 'lancenet.net.*.zip' file to 'lancenet.net.zip'
+      - name: Rename new ZIP file
+        run: |
+          # Find the new file matching the pattern 'lancenet.net.*.zip'
+          NEW_FILE=$(find . -type f -name "lancenet.net.*.zip" ! -name "lancenet.net.zip" | head -n 1)
+          if [ -n "$NEW_FILE" ]; then
+            echo "Found a new file to rename: $NEW_FILE"
+            mv "$NEW_FILE" lancenet.net.zip
+          else
+            echo "No new 'lancenet.net.*.zip' found."
+          fi
 
-          # Move the extracted content to the appropriate directory
-          rm -rf ./lancenet.net/*
-          mv ./site/* ./lancenet.net/
-          rm -rf site.zip site
-          echo "Replaced old site content with new content"
+      # 4) Commit the new/renamed file if present
+      - name: Commit new ZIP file (if changed)
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # Only attempt to commit if 'lancenet.net.zip' exists and changed
+          if [ -f "lancenet.net.zip" ]; then
+            git add lancenet.net.zip
+            git commit -m "Archive old and rename new ZIP to lancenet.net.zip" || echo "No changes to commit."
+            git push origin main
+          else
+            echo "No lancenet.net.zip to commit."
+          fi
 
-      # Step 4: Increment SITEVERSION and update version.txt
+      # 5) Increment the SITEVERSION from the stored version file
       - name: Increment SITEVERSION and update version.txt
         id: siteversion
         run: |
           VERSION_FILE="version.txt"
           if [ ! -f "$VERSION_FILE" ]; then
-            echo "0.0.0" > "$VERSION_FILE"
+            echo "Error: version.txt not found!" >&2
+            exit 1
           fi
+          # Read the current version from version.txt
           CURRENT_VERSION=$(cat "$VERSION_FILE")
           echo "Current SITEVERSION: $CURRENT_VERSION"
-
-          # Increment version by 0.0.1
+          # Increment the version by 0.0.1
           NEW_VERSION=$(echo "$CURRENT_VERSION" | awk -F. '{printf "%d.%d.%d\n", $1, $2, $3+1}')
-          echo "$NEW_VERSION" > "$VERSION_FILE"
           echo "New SITEVERSION: $NEW_VERSION"
+          # Write the new version to version.txt
+          echo "$NEW_VERSION" > "$VERSION_FILE"
+          # Make the SITEVERSION available for other steps
           echo "SITEVERSION=$NEW_VERSION" >> $GITHUB_ENV
 
-      # Step 5: Commit updated site content and version.txt
-      - name: Commit updated content and SITEVERSION
+      # 6) Commit the updated version.txt file to the repository
+      - name: Commit updated SITEVERSION to version.txt
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add .
-          git commit -m "Update site content and increment SITEVERSION to ${{ env.SITEVERSION }}" || echo "No changes to commit."
+          git add version.txt
+          git commit -m "Increment SITEVERSION to ${{ env.SITEVERSION }}" || echo "No changes to commit."
           git push origin main
 
-      # Step 6: Get accurate commit count for UPLOADVERSION
-      - name: Get accurate commit count for UPLOADVERSION
-        id: commit_count
-        run: |
-          COMMIT_COUNT=$(git rev-list --count HEAD)
-          echo "UPLOADVERSION=$COMMIT_COUNT" >> $GITHUB_ENV
-          echo "Current commit count (UPLOADVERSION): $COMMIT_COUNT"
+      # 7) Install unzip
+      - name: Install unzip
+        run: sudo apt-get update && sudo apt-get install -y unzip
 
-      # Step 7: Replace SITEVERSION and UPLOADVERSION in index.html
-      - name: Replace SITEVERSION and UPLOADVERSION in index.html
+      # 8) Extract the ZIP file (if present)
+      - name: Extract the zip file 'lancenet.net.zip'
+        run: |
+          if [ -f "./lancenet.net.zip" ]; then
+            echo "Extracting lancenet.net.zip"
+            unzip "./lancenet.net.zip" -d ./
+            ls -la
+          else
+            echo "No zip file found to extract."
+          fi
+
+      # 9) Replace SITEVERSION in 'index.html'
+      - name: Replace SITEVERSION in 'index.html'
         uses: thiagodnf/string-replacer@v1.0.2
         with:
           find: 'SITEVERSION'
           replace: '${{ env.SITEVERSION }}'
           include: 'index.html'
-      - name: Replace UPLOADVERSION in index.html
+
+      # 10) Get accurate commit count for UPLOADVERSION
+      - name: Get accurate commit count for UPLOADVERSION
+        id: commit_count
+        run: |
+          COMMIT_COUNT=$(git rev-list --count HEAD)
+          echo "UPLOADVERSION=$COMMIT_COUNT" >> $GITHUB_ENV
+
+      # 11) Replace UPLOADVERSION in 'index.html'
+      - name: Replace UPLOADVERSION in 'index.html'
         uses: thiagodnf/string-replacer@v1.0.2
         with:
           find: 'UPLOADVERSION'
           replace: '${{ env.UPLOADVERSION }}'
           include: 'index.html'
 
-      # Step 8: Display index.html content after replacements
-      - name: Display index.html content after replacements
+      - name: Display 'index.html' content after replacements
         run: cat index.html
 
-      # Step 9: Setup Pages
+      # 12) Setup Pages
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
-      # Step 10: Build with Jekyll
+      # 13) Build with Jekyll
       - name: Build with Jekyll
         uses: actions/jekyll-build-pages@v1
         with:
-          source: ./lancenet.net
+          source: ./
           destination: ./_site
 
-      # Step 11: Upload artifact
+      # 14) Upload artifact
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
 
-      # Step 12: Deploy to GitHub Pages
+      # 15) Deploy to GitHub Pages
       - name: Deploy to GitHub Pages
         uses: actions/deploy-pages@v4
