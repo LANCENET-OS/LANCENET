@@ -26,6 +26,11 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Configure Git identity
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+		  
       # 2) Remove the old ZIP from both the runner AND the repository
       - name: Remove old lancenet.net.zip
         run: |
