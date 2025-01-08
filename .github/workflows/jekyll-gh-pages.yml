@@ -21,27 +21,35 @@ jobs:
 
     steps:
       # 1) Check out the repository
-      - name: Check out the repository with full history
+      - name: Check out the repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Fetch all commit history to ensure proper commit count
+          fetch-depth: 0
 
-      # 2) Archive the existing 'lancenet.net.zip' (if any) to an 'archive' folder with a timestamp
-      - name: Archive old ZIP
+      # 2) Archive or remove old ZIP
+      - name: Archive or remove old ZIP
         run: |
+          echo "Current working directory: $(pwd)"
+          echo "Listing files in current directory:"
+          ls -la
+
           if [ -f "lancenet.net.zip" ]; then
-            echo "Existing lancenet.net.zip found. Archiving..."
+            echo "Old 'lancenet.net.zip' found. Attempting to move it into './archive'..."
             mkdir -p archive
             TIMESTAMP=$(date +'%Y%m%d%H%M%S')
-            mv lancenet.net.zip "archive/lancenet.net.${TIMESTAMP}.zip"
+            if mv lancenet.net.zip "archive/lancenet.net.${TIMESTAMP}.zip"; then
+              echo "Successfully moved old zip to archive/lancenet.net.${TIMESTAMP}.zip"
+            else
+              echo "Failed to move the old zip. Deleting it instead..."
+              rm -f lancenet.net.zip
+            fi
           else
-            echo "No existing lancenet.net.zip to archive."
+            echo "No existing 'lancenet.net.zip' to archive or delete."
           fi
 
-      # 3) Find and rename the new 'lancenet.net.*.zip' file to 'lancenet.net.zip'
+      # 3) Find and rename the new 'lancenet.net.*.zip' to 'lancenet.net.zip'
       - name: Rename new ZIP file
         run: |
-          # Find the new file matching the pattern 'lancenet.net.*.zip'
           NEW_FILE=$(find . -type f -name "lancenet.net.*.zip" ! -name "lancenet.net.zip" | head -n 1)
           if [ -n "$NEW_FILE" ]; then
             echo "Found a new file to rename: $NEW_FILE"
@@ -50,13 +58,11 @@ jobs:
             echo "No new 'lancenet.net.*.zip' found."
           fi
 
-      # 4) Commit the new/renamed file if present
-      - name: Commit new ZIP file (if changed)
+      # 4) Commit the new/renamed file if changed
+      - name: Commit new ZIP file
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          
-          # Only attempt to commit if 'lancenet.net.zip' exists and changed
           if [ -f "lancenet.net.zip" ]; then
             git add lancenet.net.zip
             git commit -m "Archive old and rename new ZIP to lancenet.net.zip" || echo "No changes to commit."
@@ -65,7 +71,7 @@ jobs:
             echo "No lancenet.net.zip to commit."
           fi
 
-      # 5) Increment the SITEVERSION from the stored version file
+      # 5) Increment SITEVERSION
       - name: Increment SITEVERSION and update version.txt
         id: siteversion
         run: |
@@ -74,19 +80,14 @@ jobs:
             echo "Error: version.txt not found!" >&2
             exit 1
           fi
-          # Read the current version from version.txt
           CURRENT_VERSION=$(cat "$VERSION_FILE")
           echo "Current SITEVERSION: $CURRENT_VERSION"
-          # Increment the version by 0.0.1
           NEW_VERSION=$(echo "$CURRENT_VERSION" | awk -F. '{printf "%d.%d.%d\n", $1, $2, $3+1}')
-          echo "New SITEVERSION: $NEW_VERSION"
-          # Write the new version to version.txt
           echo "$NEW_VERSION" > "$VERSION_FILE"
-          # Make the SITEVERSION available for other steps
           echo "SITEVERSION=$NEW_VERSION" >> $GITHUB_ENV
 
-      # 6) Commit the updated version.txt file to the repository
-      - name: Commit updated SITEVERSION to version.txt
+      # 6) Commit updated SITEVERSION
+      - name: Commit updated version.txt
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
@@ -98,8 +99,8 @@ jobs:
       - name: Install unzip
         run: sudo apt-get update && sudo apt-get install -y unzip
 
-      # 8) Extract the ZIP file (if present)
-      - name: Extract the zip file 'lancenet.net.zip'
+      # 8) Extract the ZIP file
+      - name: Extract the zip file
         run: |
           if [ -f "./lancenet.net.zip" ]; then
             echo "Extracting lancenet.net.zip"
@@ -109,7 +110,7 @@ jobs:
             echo "No zip file found to extract."
           fi
 
-      # 9) Replace SITEVERSION in 'index.html'
+      # 9) Replace SITEVERSION in index.html
       - name: Replace SITEVERSION in 'index.html'
         uses: thiagodnf/string-replacer@v1.0.2
         with:
@@ -117,14 +118,14 @@ jobs:
           replace: '${{ env.SITEVERSION }}'
           include: 'index.html'
 
-      # 10) Get accurate commit count for UPLOADVERSION
-      - name: Get accurate commit count for UPLOADVERSION
+      # 10) Get commit count for UPLOADVERSION
+      - name: Get commit count
         id: commit_count
         run: |
           COMMIT_COUNT=$(git rev-list --count HEAD)
           echo "UPLOADVERSION=$COMMIT_COUNT" >> $GITHUB_ENV
 
-      # 11) Replace UPLOADVERSION in 'index.html'
+      # 11) Replace UPLOADVERSION in index.html
       - name: Replace UPLOADVERSION in 'index.html'
         uses: thiagodnf/string-replacer@v1.0.2
         with:
@@ -132,7 +133,7 @@ jobs:
           replace: '${{ env.UPLOADVERSION }}'
           include: 'index.html'
 
-      - name: Display 'index.html' content after replacements
+      - name: Display index.html
         run: cat index.html
 
       # 12) Setup Pages
