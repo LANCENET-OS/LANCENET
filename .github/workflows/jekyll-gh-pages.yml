@@ -21,47 +21,51 @@ jobs:
 
     steps:
       # 1) Check out the repository
-      - name: Check out the repository
+      - name: Checkout code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      # 2) Delete the old lancenet.net.zip if it exists
-      - name: Delete old ZIP if it exists
+      # 2) Remove the old ZIP from both the runner AND the repository
+      - name: Remove old lancenet.net.zip
         run: |
           if [ -f "lancenet.net.zip" ]; then
-            echo "Deleting old lancenet.net.zip..."
+            echo "Old lancenet.net.zip found locally. Removing it..."
             rm -f lancenet.net.zip
+
+            # Remove it from the repo (if it's tracked), commit and push
+            if git ls-files --error-unmatch lancenet.net.zip >/dev/null 2>&1; then
+              echo "lancenet.net.zip is tracked by git. Removing from repo..."
+              git rm -f lancenet.net.zip
+              git commit -m "Remove old lancenet.net.zip"
+              git push origin main
+            else
+              echo "lancenet.net.zip was not tracked in git. Nothing to commit."
+            fi
           else
-            echo "No existing lancenet.net.zip to delete."
+            echo "No existing lancenet.net.zip found locally."
           fi
 
-      # 3) Find and rename the new 'lancenet.net.*.zip' to 'lancenet.net.zip'
-      - name: Rename new ZIP file
+      # 3) Rename the newly uploaded 'lancenet.net.*.zip' to 'lancenet.net.zip'
+      #    and commit/push the renamed file to the repo
+      - name: Rename and commit new ZIP file
         run: |
+          # Find the new file matching 'lancenet.net.*.zip' but not 'lancenet.net.zip'
           NEW_FILE=$(find . -type f -name "lancenet.net.*.zip" ! -name "lancenet.net.zip" | head -n 1)
           if [ -n "$NEW_FILE" ]; then
             echo "Found new ZIP: $NEW_FILE"
             mv "$NEW_FILE" lancenet.net.zip
+
+            # Now commit the new file to the repository
+            git add lancenet.net.zip
+            git commit -m "Add new lancenet.net.zip"
+            git push origin main
           else
             echo "No new 'lancenet.net.*.zip' found."
           fi
 
-      # 4) (Optional) Commit the new/renamed file if you want it in the repo
-      - name: Commit new ZIP file (if changed)
-        run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          if [ -f "lancenet.net.zip" ]; then
-            git add lancenet.net.zip
-            git commit -m "Replace old ZIP with new lancenet.net.zip" || echo "No changes to commit."
-            git push origin main
-          else
-            echo "No lancenet.net.zip to commit."
-          fi
-
-      # 5) Increment SITEVERSION (from version.txt)
-      - name: Increment SITEVERSION and update version.txt
+      # 4) Increment SITEVERSION in version.txt (optional)
+      - name: Increment SITEVERSION in version.txt
         id: siteversion
         run: |
           VERSION_FILE="version.txt"
@@ -75,31 +79,28 @@ jobs:
           echo "$NEW_VERSION" > "$VERSION_FILE"
           echo "SITEVERSION=$NEW_VERSION" >> $GITHUB_ENV
 
-      # 6) Commit updated SITEVERSION
-      - name: Commit updated version.txt
+      - name: Commit updated SITEVERSION
         run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add version.txt
           git commit -m "Increment SITEVERSION to ${{ env.SITEVERSION }}" || echo "No changes to commit."
           git push origin main
 
-      # 7) Install unzip
+      # 5) Install unzip
       - name: Install unzip
         run: sudo apt-get update && sudo apt-get install -y unzip
 
-      # 8) Extract the newly renamed ZIP (if it exists)
-      - name: Extract the zip file
+      # 6) Extract the newly renamed lancenet.net.zip
+      - name: Extract the ZIP file
         run: |
           if [ -f "lancenet.net.zip" ]; then
             echo "Extracting lancenet.net.zip"
-            unzip "lancenet.net.zip" -d ./
+            unzip lancenet.net.zip -d ./
             ls -la
           else
-            echo "No zip file found to extract."
+            echo "No lancenet.net.zip to extract."
           fi
 
-      # 9) Replace SITEVERSION in 'index.html'
+      # 7) Replace SITEVERSION in 'index.html'
       - name: Replace SITEVERSION in 'index.html'
         uses: thiagodnf/string-replacer@v1.0.2
         with:
@@ -107,14 +108,14 @@ jobs:
           replace: '${{ env.SITEVERSION }}'
           include: 'index.html'
 
-      # 10) Get commit count for UPLOADVERSION
-      - name: Get commit count
+      # 8) Get commit count for UPLOADVERSION
+      - name: Get commit count for UPLOADVERSION
         id: commit_count
         run: |
           COMMIT_COUNT=$(git rev-list --count HEAD)
           echo "UPLOADVERSION=$COMMIT_COUNT" >> $GITHUB_ENV
 
-      # 11) Replace UPLOADVERSION in 'index.html'
+      # 9) Replace UPLOADVERSION in 'index.html'
       - name: Replace UPLOADVERSION in 'index.html'
         uses: thiagodnf/string-replacer@v1.0.2
         with:
@@ -125,21 +126,21 @@ jobs:
       - name: Display index.html
         run: cat index.html
 
-      # 12) Setup Pages
+      # 10) Setup Pages
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
-      # 13) Build with Jekyll
+      # 11) Build with Jekyll
       - name: Build with Jekyll
         uses: actions/jekyll-build-pages@v1
         with:
           source: ./
           destination: ./_site
 
-      # 14) Upload artifact
+      # 12) Upload artifact
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
 
-      # 15) Deploy to GitHub Pages
+      # 13) Deploy to GitHub Pages
       - name: Deploy to GitHub Pages
         uses: actions/deploy-pages@v4
