@@ -109,6 +109,7 @@ jobs:
           find: 'SITEVERSION'
           replace: '${{ env.SITEVERSION }}'
           include: 'index.html'
+          flags: 'g'
 
       # 10) Get commit count for UPLOADVERSION
       - name: Get commit count for UPLOADVERSION
@@ -124,6 +125,7 @@ jobs:
           find: 'UPLOADVERSION'
           replace: '${{ env.UPLOADVERSION }}'
           include: 'index.html'
+          flags: 'g'
 
       - name: Display index.html
         run: cat index.html
